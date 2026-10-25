@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite it as below."
+title: "Guest Issue Triage & Recovery Decision Support"
+type: software
+authors:
+  - family-names: Wang
+    given-names: Yijun
+date-released: 2026-10-25
+version: 1.0.0
+url: "https://github.com/williamwang926/26Cornell_Hospitality_Hackathon"
+abstract: "A reproducible machine-learning and satisfaction-prioritization prototype for hotel guest-issue triage and recovery decision support."
+license: "Proprietary"
