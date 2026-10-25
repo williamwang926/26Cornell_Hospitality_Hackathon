@@ -96,7 +96,7 @@
   .chev { color: var(--muted); font-size: 11px; width: 12px; display: inline-block; transition: transform .12s; }
   [aria-expanded="true"] > .chev { transform: rotate(90deg); }
   .rk { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; }
-  .cl-h, .cmp > .row-btn { display: grid; grid-template-columns: 12px 26px minmax(0, 1.5fr) minmax(0, 1.1fr) 76px 72px 104px 104px 84px 64px 132px; gap: 4px 10px; align-items: center; padding: 9px 14px; }
+  .cl-h, .cmp > .row-btn { display: grid; grid-template-columns: 12px 26px minmax(0, 1.5fr) minmax(0, 1.1fr) 88px 112px 104px 96px 98px; gap: 4px 10px; align-items: center; padding: 9px 14px; }
   .cl-h { font-size: 11.5px; font-weight: 600; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); padding-top: 6px; padding-bottom: 6px; align-items: end; line-height: 1.25; }
   .cl-h .r, .m.r { text-align: right; }
   .mets { display: contents; }
@@ -156,7 +156,7 @@
   .aud-note { font-size: 12px; color: var(--muted); margin: 0; }
 
   .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-  table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1040px; font-size: 12.5px; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 880px; font-size: 12.5px; }
   th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
   tbody tr:last-child td { border-bottom: 0; }
   th { background: var(--panel-2); font-size: 12px; font-weight: 600; color: var(--muted); vertical-align: bottom; line-height: 1.25; }
@@ -254,12 +254,11 @@
     <summary>How expected profit is computed</summary>
     <ol>
       <li><b>Stay Score gain</b> of a solution = this hotel's own regression (Model B) gain for the complaint's topic — the <i>prevent</i> gain for Prevent solutions, the <i>resolve</i> gain for Resolve solutions — × the assumed solution effect × the share of guests in the target audience, converted at <code class="ssp">30.2</code> Stay Score points per rating point.</li>
-      <li><b>Stay Score per $1k</b> = Stay Score gain ÷ annual cost × 1,000. Complaints are ranked by their best solution on this metric; a complaint's solutions are ranked the same way.</li>
-      <li><b>RevPAR / revenue gain</b> = Stay Score gain translated through the hotel-class price elasticity applied to rooms revenue.</li>
-      <li><b>Expected profit</b> (owner $/yr) = rate flow-through + profit on extra room-nights + ancillary margin. The small low–high range beneath each figure brackets the assumptions.</li>
-      <li><b>Net profit</b> = expected profit − annual cost (unit cost × annual uses). <b>ROI</b> = net profit ÷ annual cost.</li>
+      <li><b>Cost / case</b> = the cost of this solution divided by the cases it is expected to fix.</li>
+      <li><b>Expected profit / case</b> = owner profit attributed to the solution, divided by cases fixed. The small low–high range brackets the assumptions.</li>
+      <li><b>Net profit / case</b> = expected profit / case − cost / case. Complaints and solutions are ranked on this metric.</li>
       <li id="pricing-li" hidden><b>Cost</b>: <span id="pricing-model"></span>. Hourly wages by department:<div id="labor-rates"></div></li>
-      <li><b>Per case</b> (one guest complaint fixed): <b>cases / yr</b> = complaints this solution fixes a year — per-complaint solutions: annual uses × effect; per-guest and per-room-per-year solutions: the hotel's complaints scaled to all stays × the audience's share of complaints × effect. <b>Cost / case</b> = annual cost ÷ cases / yr (for per-complaint solutions ≈ unit cost ÷ effect: the cost per case actually fixed). <b>Stay Score / case</b> = Stay Score gain ÷ cases / yr. <b>Profit / case</b> = expected profit ÷ cases / yr; <b>Net / case</b> = profit / case − cost / case. <b>Guest rating lift</b> = the rating change (1–5 scale) for the one guest whose case is fixed: this hotel's Model B weight for the case type (resolution weight for Resolve, prevention weight for Prevent; 0 if not positive) × the solution effect.</li>
+      <li><b>Per case</b> means one guest complaint fixed. <b>Stay Score / case</b> is the hotel-level Stay Score contribution of that case. <b>Guest rating lift</b> is the 1–5 rating change expected for the guest whose case is fixed.</li>
       <li>"Fixing it entirely" = the Stay Score the hotel would gain if this complaint disappeared completely (Model B gain for the topic at 100% effect, all guests).</li>
       <li>Each solution is listed once, for the one audience it targets (family solutions are for Families only; general solutions are for All guests). Solutions for one complaint overlap, so they are alternatives, not additive.</li>
       <li><b>Urgent</b> complaints are pinned at the very top, then Safety &amp; security complaints ("Safety · escalate"): both go to Security / GM regardless of cost or rank.</li>
@@ -758,7 +757,6 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     if (a >= 10000) return sign + (a / 1000).toFixed(1) + "k%";
     return sign + a.toFixed(a >= 100 ? 0 : 1) + "%";
   }
-  function roi(r) { return num(r.annual_cost) > 0 && !isNaN(num(r.roi)) ? pct(r.roi) : '<span class="dash" title="No annual cost">—</span>'; }
   function incPct(v) { v = num(v); if (isNaN(v)) return "—"; var p = v * 100; return (p < 0.1 && p > 0 ? p.toFixed(2) : p.toFixed(1)) + "%"; }
   var centsFmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // Per-case dollars: cents below $1,000, else whole dollars. signed → green/red.
@@ -775,6 +773,10 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
   function liftText(v) { v = num(v); if (isNaN(v)) return "—"; return (v > 0 ? "+" : "") + v.toFixed(2); }
   function lift(v) { return '<span title="' + esc(fixed(v, 3)) + ' rating points (1–5)">' + liftText(v) + "</span>"; }
   function caseCount(v) { v = num(v); if (isNaN(v)) return "—"; return v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1); }
+  function perCaseValue(total, cases) {
+    total = num(total); cases = num(cases);
+    return isNaN(total) || isNaN(cases) || cases <= 0 ? NaN : total / cases;
+  }
   function intFmt(v) { v = num(v); return isNaN(v) ? "—" : Math.round(v).toLocaleString("en-US"); }
   function bar(v, max) {
     var w = max > 0 && num(v) > 0 ? Math.max(0, Math.min(100, num(v) / max * 100)) : 0;
@@ -788,8 +790,8 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     else if (arr && typeof arr === "object") { for (var k in arr) o[k] = arr[k]; }
     return o;
   }
-  function byRateDesc(a, b) {
-    var x = num(a.stay_score_per_1k), y = num(b.stay_score_per_1k), xn = isNaN(x), yn = isNaN(y);
+  function byNetPerCaseDesc(a, b) {
+    var x = num(a.net_per_case), y = num(b.net_per_case), xn = isNaN(x), yn = isNaN(y);
     if (xn || yn) return xn === yn ? a._i - b._i : (xn ? 1 : -1); // missing always last
     return y - x || a._i - b._i;
   }
@@ -812,16 +814,31 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     var list = p.complaints.map(function (c) {
       var cid = String(c.complaint_id); seen[cid] = 1;
       var m = META_C[cid] || { complaint_id: cid, complaint: cid };
-      var rows = (c.solutions || []).map(toRow).sort(byRateDesc);
+      var rows = (c.solutions || []).map(toRow).sort(byNetPerCaseDesc);
       rows.forEach(function (r) { if (r["for"] && AUDS.indexOf(r["for"]) < 0) AUDS.push(r["for"]); });
-      var best = num(c.best_stay_score_per_1k);
-      if (isNaN(best) && rows.length) best = num(rows[0].stay_score_per_1k);
+      var best = rows.length ? num(rows[0].net_per_case) : NaN;
       var has = truthy(c.has_data);
       var safety = truthy(m.safety), urgent = truthy(m.urgent);
       var grp = urgent ? 0 : !has ? 4 : safety ? 1 : rows.length && !isNaN(best) ? 2 : 3;
       return { id: cid, m: m, has: has, safety: safety, urgent: urgent, grp: grp, best: best, rows: rows, top: rows[0] || null,
                complaints: c.complaints, reviews: c.reviews_in_window, incidence: c.incidence, full_fix: c.full_fix_stay_score,
                unresolved_reported: c.unresolved_reported, resolve_weight: c.resolve_weight, prevent_weight: c.prevent_weight };
+    });
+    // Collapse only complaints with identical model outputs, retaining their wording as aliases.
+    var unique = {};
+    list = list.filter(function (c) {
+      var signature = caseOf(c.m) + "|" + [c.complaints, c.reviews, c.incidence, c.full_fix,
+        c.unresolved_reported, c.resolve_weight, c.prevent_weight].join("|") + "|" + c.rows.map(function (r) {
+          return [r.type, r.solution, r["for"], r.cost_per_case, r.stay_score_per_case,
+            r.profit_per_case, r.net_per_case, r.guest_rating_lift].join("~");
+        }).join("|");
+      if (unique[signature]) {
+        unique[signature].aliases.push(c.m.complaint || c.id);
+        return false;
+      }
+      c.aliases = [];
+      unique[signature] = c;
+      return true;
     });
     // Any global complaint missing from the hotel file is shown as "no recent complaints".
     (meta.complaints || []).forEach(function (m) {
@@ -848,20 +865,13 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
   // ---------- solution table (expanded complaint) ----------
   var TCOLS = [
     { label: "Solution" }, { label: "For" }, { label: "Type" },
-    { label: "Annual cost", right: true, title: "Unit cost × annual uses" },
-    { label: "Stay Score gain", right: true },
-    { label: "Stay Score per $1k", right: true, hero: true, title: "Stay Score gain ÷ annual cost × 1,000 — the ranking metric" },
-    { label: "Expected profit", right: true, title: "Owner profit $/yr from the Stay Score gain (base case); low–high range beneath" },
-    { label: "Net profit", right: true, title: "Expected profit − annual cost" },
-    { label: "ROI", right: true, title: "Net profit ÷ annual cost" },
-    { label: "Cost / case", right: true, title: "Annual cost ÷ cases fixed a year (cases / yr beneath)" },
+    { label: "Cost / case", right: true },
+    { label: "Expected profit / case", right: true, title: "Owner profit per fixed case; low–high range beneath" },
+    { label: "Net profit / case", right: true, hero: true, title: "Expected profit per case − cost per case — the ranking metric" },
     { label: "Stay Score / case", right: true, title: "Stay Score gain ÷ cases fixed a year: the hotel Stay Score points one fixed case adds" },
     { label: "Guest rating lift", right: true, title: "Rating change (1–5) for the one guest whose case is fixed: this hotel's Model B weight × effect" },
-    { label: "Net / case", right: true, title: "Profit per case − cost per case" }
   ];
   function tableHtml(c, rows) {
-    var h = HOTEL_BY_ID[state.hotel];
-    var curS = h ? num(h.stay_score) : NaN;
     var head = "<tr>" + TCOLS.map(function (t) {
       return '<th scope="col" class="' + (t.right ? "r " : "") + (t.hero ? "hero" : "") + '"' + (t.title ? ' title="' + esc(t.title) + '"' : "") + ">" + esc(t.label) + "</th>";
     }).join("") + "</tr>";
@@ -875,29 +885,23 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
         '<td><div class="sol"><button type="button" data-open="' + esc(key) + '" aria-expanded="' + isOpen + '" aria-label="Show details for ' + esc(r.solution) + '">' + (isOpen ? "▾" : "▸") + '</button><div><span class="srk">' + (c.rows.indexOf(r) + 1) + '.</span><span title="' + esc(tip) + '">' + esc(r.solution) + "</span></div></div></td>" +
         '<td class="for">' + esc(r["for"] || "—") + "</td>" +
         '<td><span class="pill type ' + esc(r.type) + '" title="' + esc(r.basis) + '">' + esc(r.type) + "</span></td>" +
-        '<td class="r n">' + money(r.annual_cost) + "</td>" +
-        '<td class="r n">' + signedPts(r.stay_score_gain) + "</td>" +
-        '<td class="r n hero"><span class="big" title="' + esc(fixed(r.stay_score_per_1k, 5)) + '">' + rate(r.stay_score_per_1k) + "</span></td>" +
-        '<td class="r n">' + money(r.profit_gain) + '<span class="rng">' + moneyShort(r.profit_low) + " – " + moneyShort(r.profit_high) + "</span></td>" +
-        '<td class="r n">' + netMoney(r.net_profit) + "</td>" +
-        '<td class="r n">' + roi(r) + "</td>" +
-        '<td class="r n">' + cents(r.cost_per_case) + '<span class="rng">' + caseCount(r.cases_per_year) + " cases / yr</span></td>" +
+        '<td class="r n">' + cents(r.cost_per_case) + "</td>" +
+        '<td class="r n">' + cents(r.profit_per_case) + '<span class="rng">' + centsText(perCaseValue(r.profit_low, r.cases_per_year)) + " – " + centsText(perCaseValue(r.profit_high, r.cases_per_year)) + "</span></td>" +
+        '<td class="r n hero">' + cents(r.net_per_case, true) + "</td>" +
         '<td class="r n">' + ssCase(r.stay_score_per_case) + "</td>" +
         '<td class="r n">' + lift(r.guest_rating_lift) + "</td>" +
-        '<td class="r n">' + cents(r.net_per_case, true) + "</td>" +
         "</tr>"
       );
       if (isOpen) {
         html.push('<tr class="detail"><td colspan="' + TCOLS.length + '"><div class="dwrap"><div class="desc">' + esc(r.description || "No description.") + "</div>" +
           (r.source ? '<div class="src">Source: ' + esc(r.source) + "</div>" : "") + "<dl>" +
           "<dt>Basis</dt><dd>" + esc(r.basis || "—") + "</dd>" +
-          '<dt>Predicted Stay Score</dt><dd title="Current Stay Score → predicted with this solution">' + fixed(curS, 2) + " → <b>" + fixed(r.predicted_stay_score, 3) + "</b></dd>" +
-          "<dt>Unit cost × uses / yr</dt><dd>" + money(r.unit_cost) + " × " + intFmt(r.uses) + " = " + money(r.annual_cost) + "</dd>" +
-          "<dt>Cases fixed / yr</dt><dd>" + caseCount(r.cases_per_year) + " → " + cents(r.cost_per_case) + " per case</dd>" +
-          "<dt>Expected profit / case</dt><dd>" + cents(r.profit_per_case) + " − " + cents(r.cost_per_case) + " = " + cents(r.net_per_case, true) + "</dd>" +
-          "<dt>Rating gain (1–5 scale)</dt><dd>" + signedPts(r.gain) + "</dd>" +
-          "<dt>Revenue gain / yr</dt><dd>" + money(r.revenue_gain) + "</dd>" +
-          "<dt>Expected profit range</dt><dd>" + money(r.profit_low) + " – " + money(r.profit_high) + " (base " + money(r.profit_gain) + ")</dd>" +
+          "<dt>Cost / case</dt><dd>" + cents(r.cost_per_case) + "</dd>" +
+          "<dt>Revenue / case</dt><dd>" + cents(perCaseValue(r.revenue_gain, r.cases_per_year)) + "</dd>" +
+          "<dt>Expected profit / case</dt><dd>" + cents(perCaseValue(r.profit_low, r.cases_per_year)) + " – " + cents(perCaseValue(r.profit_high, r.cases_per_year)) + " (base " + cents(r.profit_per_case) + ")</dd>" +
+          "<dt>Net profit / case</dt><dd>" + cents(r.net_per_case, true) + "</dd>" +
+          "<dt>Stay Score / case</dt><dd>" + ssCase(r.stay_score_per_case) + "</dd>" +
+          "<dt>Guest rating lift (1–5)</dt><dd>" + lift(r.guest_rating_lift) + "</dd>" +
           "</dl></div></td></tr>");
       }
     });
@@ -925,8 +929,8 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
   }
   function bodyHtml(c) {
     var out = [contextLine(c)];
-    var ck = caseOf(c.m), sib = (BY_CASE[ck] || []).filter(function (o) { return String(o.complaint_id) !== c.id; });
-    if (ck) out.push('<p class="ctype">Case type: <b>' + esc(caseLabel(ck)) + "</b>" + (sib.length ? " · shared with " + sib.map(function (o) { return "“" + esc(o.complaint) + "”"; }).join(", ") + ", so the numbers are identical" : "") + "</p>");
+    var ck = caseOf(c.m);
+    if (ck) out.push('<p class="ctype">Case type: <b>' + esc(caseLabel(ck)) + "</b>" + (c.aliases && c.aliases.length ? " · also covers " + c.aliases.map(function (x) { return "“" + esc(x) + "”"; }).join(", ") : "") + "</p>");
     var aka = c.m.also_heard_as;
     if (aka && aka.length) out.push('<p class="aka">Also heard as: ' + (Array.isArray(aka) ? aka : [aka]).map(function (a) { return "“" + esc(a) + "”"; }).join(", ") + "</p>");
     if (c.urgent) out.push('<p class="sfty-note">Urgent: act now and escalate to ' + esc(c.m.owner_department || "Security / GM") + " — pinned to the top regardless of cost.</p>");
@@ -941,7 +945,7 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     }).join("") + "</div>");
     var rows = state.aud === ALL ? c.rows : c.rows.filter(function (r) { return r["for"] === state.aud; });
     out.push(rows.length ? tableHtml(c, rows) : '<div class="empty">No solution targets ' + esc(state.aud) + " for this complaint.</div>");
-    out.push('<p class="aud-note">Solutions overlap, so they are alternatives — pick one; their gains are not additive. Ranked by Stay Score per $1k.</p>');
+    out.push('<p class="aud-note">Solutions overlap, so they are alternatives — pick one; their gains are not additive. Ranked by net profit per case.</p>');
     return out.join("");
   }
 
@@ -949,7 +953,7 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
   var GROUP_HEAD = {
     0: '<div class="grp-h urg">Urgent · act now — not ranked by cost</div>',
     1: '<div class="grp-h sfty">Safety &amp; security · escalate to Security / GM — not ranked by cost</div>',
-    2: '<div class="grp-h">Ranked by Stay Score per $1k</div>',
+    2: '<div class="grp-h">Ranked by net profit per case</div>',
     3: '<div class="grp-h">Complaints with no costed solution yet</div>',
     4: '<div class="grp-h">No recent complaints at this hotel</div>'
   };
@@ -963,22 +967,19 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     var open = c.id === state.c;
     var t = c.top, m = c.m;
     var rk = c.grp === 2 ? String(c.rank) : c.grp <= 1 ? '<span style="color:var(--safety)" title="' + (c.urgent ? "Urgent" : "Safety") + ': pinned, not ranked">!</span>' : "—";
-    var ck = caseOf(m), sib = (BY_CASE[ck] || []).filter(function (o) { return String(o.complaint_id) !== c.id; });
     var tags = '<span class="tags">' + (c.urgent ? '<span class="pill badge-urgent" title="Urgent: pinned to the top, escalate now">Urgent</span>' : "") + (m.macro_category ? '<span class="tag" title="Category">' + esc(m.macro_category) + "</span>" : "") +
       (m.owner_department ? '<span title="Owner department">' + esc(m.owner_department) + "</span>" : "") +
       (c.safety ? '<span class="pill badge-safety" title="Safety/legal items override cost ranking">Safety · escalate — not ranked by cost</span>' : "") +
-      (sib.length ? '<span class="same" title="Case type: ' + esc(caseLabel(ck)) + ' — complaints of the same case type share the same numbers">Same case type as “' + esc(sib[0].complaint) + "”" + (sib.length > 1 ? " +" + (sib.length - 1) : "") + "</span>" : "") +
+      (c.aliases && c.aliases.length ? '<span class="same" title="These complaints have identical model outputs">Also covers “' + esc(c.aliases[0]) + "”" + (c.aliases.length > 1 ? " +" + (c.aliases.length - 1) : "") + "</span>" : "") +
       (!c.has ? '<span class="nodata-lbl">No recent complaints at this hotel</span>' : c.grp === 3 ? '<span class="nodata-lbl">No costed solution yet</span>' : "") + "</span>";
     var showMet = c.has && t;
     var mets = '<span class="mets">' +
       '<span class="m best"><span class="lbl">Best solution</span>' + (t ? esc(t.solution) + "<small>" + esc(t.type || "") + (t["for"] ? " · for " + esc(t["for"]) : "") + "</small>" : DASH) + "</span>" +
-      '<span class="m r"><span class="lbl">Annual cost</span>' + (t ? money(t.annual_cost) : DASH) + "</span>" +
-      '<span class="m r"><span class="lbl">Stay Score gain</span>' + (showMet ? signedPts(t.stay_score_gain) : DASH) + "</span>" +
-      '<span class="m r hero"><span class="lbl">Stay Score per $1k</span>' + (showMet ? '<span class="big" title="' + esc(fixed(c.best, 5)) + '">' + rate(c.best) + "</span>" + (c.grp <= 2 ? bar(c.best, maxBest) : "") : DASH) + "</span>" +
-      '<span class="m r"><span class="lbl">Expected profit</span>' + (showMet ? money(t.profit_gain) + '<span class="rng">' + moneyShort(t.profit_low) + " – " + moneyShort(t.profit_high) + "</span>" : DASH) + "</span>" +
-      '<span class="m r"><span class="lbl">Net profit</span>' + (showMet ? netMoney(t.net_profit) : DASH) + "</span>" +
-      '<span class="m r"><span class="lbl">ROI</span>' + (showMet ? roi(t) : DASH) + "</span>" +
-      '<span class="m pc"><span class="lbl">Per case (best solution)</span>' + (showMet ? perCase(t) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Cost / case</span>' + (showMet ? cents(t.cost_per_case) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Expected profit / case</span>' + (showMet ? cents(t.profit_per_case) : DASH) + "</span>" +
+      '<span class="m r hero"><span class="lbl">Net profit / case</span>' + (showMet ? cents(t.net_per_case, true) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Stay Score / case</span>' + (showMet ? ssCase(t.stay_score_per_case) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Guest rating lift</span>' + (showMet ? lift(t.guest_rating_lift) : DASH) + "</span>" +
       "</span>";
     var bid = "cb-" + c.id.replace(/[^\w-]/g, "_");
     return '<div class="cmp' + (c.urgent ? " urgent" : c.safety && c.has ? " safety" : "") + (!c.has ? " nodata" : "") + (open ? " open" : "") + '">' +
@@ -995,7 +996,7 @@ window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
     var d = cur();
     if (!d.list.length) { box.innerHTML = '<div class="state">No guest complaints in the data.</div>'; return; }
     var html = ['<div class="cl-h" aria-hidden="true"><span></span><span class="rk">#</span><span>Guest complaint · category · owner</span><span>Best solution</span>' +
-      '<span class="r">Annual cost</span><span class="r">Stay Score gain</span><span class="r hero">Stay Score per $1k</span><span class="r">Expected profit</span><span class="r">Net profit</span><span class="r">ROI</span><span title="Best solution: cost per case fixed · Stay Score one case adds · rating lift for that guest">Per case</span></div>'];
+      '<span class="r">Cost / case</span><span class="r">Expected profit / case</span><span class="r hero">Net profit / case</span><span class="r">Stay Score / case</span><span class="r">Guest rating lift</span></div>'];
     var lastG = -1;
     d.list.forEach(function (c) {
       if (c.grp !== lastG) { html.push(GROUP_HEAD[c.grp]); lastG = c.grp; }
