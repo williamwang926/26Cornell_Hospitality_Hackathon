@@ -73,7 +73,7 @@ The optional Transformer scripts are retained as benchmarks. The selected model 
 
 ## Dashboard placeholder
 
-No dashboard UI is included in this release. The future front end should mount in `dashboard/embed.html` and consume only non-sensitive generated artifacts (for example, `results/department_solution_catalog.json` and aggregate model outputs). It must not bundle raw guest text, the raw export, or property identifiers into a public/static artifact. See [`dashboard/README.md`](dashboard/README.md) for the integration contract.
+This repository includes a dashboard prototype for hotel guest-issue triage and recovery planning. It demonstrates how guest feedback can be categorized and prioritized by estimating the potential profit impact of resolving each issue, based on modeled rating improvements and editable property-level cost assumptions, and then routed to the appropriate department. The demo uses simulated data and is not connected to Hilton systems. See dashboard/README.md for setup and usage instructions.
 
 ## Repository structure
 
