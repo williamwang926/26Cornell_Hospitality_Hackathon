@@ -1,0 +1,13 @@
+macro_category,owner_department,priority_mode,requires_manager_confirmation,description
+Amenities,Facilities / Guest Services,normal,yes,Pool fitness internet laundry shuttle and other amenity availability or condition.
+Arrival & departure,Front Office,normal,yes,Check-in check-out parking and arrival experience.
+Bathroom,Housekeeping / Engineering,normal,yes,Cleanliness fixtures supplies drainage water pressure and bathroom condition.
+Billing & payments,Front Office / Finance,normal,yes,Folio accuracy payments refunds fees discounts and price disputes.
+Customer service & recovery,Guest Relations,normal,yes,Complaint handling service recovery satisfaction and retention.
+Digital & loyalty,Digital / Loyalty,normal,yes,Digital experience Hilton Honors benefits and loyalty-program issues.
+Food & beverage,F&B,normal,yes,Breakfast restaurant bar room service and food quality or availability.
+Public areas,Facilities / Housekeeping,normal,yes,Elevators lobby common-area cleanliness noise temperature and condition.
+Reservations,Reservations / Front Office,normal,yes,Booking modifications room rates confirmations and reservation errors.
+Room condition & comfort,Housekeeping / Engineering,normal,yes,Room condition cleanliness bed odor noise access and in-room equipment.
+Safety & security,Security / GM,emergency_override,yes,On-site safety security accessibility and legal-risk issues. Never rank purely by cost.
+Staff service,Department Manager,normal,yes,Speed availability attitude communication and position-specific service failures.

@@ -1,0 +1,11 @@
+data/dashboard-export-*.csv
+data/dashboard-export-*.zip
+data/processed/
+models/
+__pycache__/
+.venv/
+.local_ml/
+*.pyc
+*.env
+.env
+data/.*
