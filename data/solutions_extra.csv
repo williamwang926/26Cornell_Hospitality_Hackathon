@@ -1,0 +1,4 @@
+topic,solution,purpose,tier,basis,labor_dept,labor_hours,item_cost_usd,room_nights,uptake,effect,description
+BathroomCondition,Engineer repair within the hour,All,All,complaint,Repairs & Maintenance,1.0,15.0,0.0,,0.6,"An engineer fixes the toilet, fixture or leak on the spot, with an apology"
+BathroomFeatures,Engineer repair within the hour,All,All,complaint,Repairs & Maintenance,1.0,15.0,0.0,,0.6,"An engineer fixes the shower, pressure or hot water on the spot, with an apology"
+Room-Condition,Engineer repair within the hour,All,All,complaint,Repairs & Maintenance,1.0,15.0,0.0,,0.6,"An engineer fixes the broken item in the room on the spot, with an apology"

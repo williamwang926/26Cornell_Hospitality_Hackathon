@@ -8,6 +8,8 @@ The solution layer is a transparent planning aid. It separates accounting/wage b
 - USALI is an industry lodging-accounting standard maintained through AHLA/HFTP governance; AHLA describes the 12th revised edition at <https://www.ahla.com/news/hftp-ahla-and-gfc-unveil-groundbreaking-12th-revised-edition-uniform-system-accounts-lodging>.
 - BLS publishes 2025 accommodation-industry mean hourly wages, including housekeeping ($17.62), desk clerks ($17.01), and lodging managers ($37.08): <https://www.bls.gov/iag/tgs/iag721.htm>.
 
+- Default `w_dept` (labor price per hour, wages only) is the BLS 2025 NAICS 721 mean hourly wage per `labor_dept` in `data/labor_rates.csv` (Rooms $17.62, F&B $21.49, R&M $21.70, A&G $37.08), used by the dashboard export.
+
 These sources support the cost structure and wage order of magnitude. They do not provide a property-specific price for a recovery action.
 
 ## Editable assumptions

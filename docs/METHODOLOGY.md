@@ -54,7 +54,7 @@ The review data do not identify solution-level costs or effects. The solution ca
 C=h\times w_{dept}+c_{item}+n_{room}\times ADR\times d,
 \]
 
-where \(h\) is incremental labor hours, \(w_{dept}\) the property loaded hourly rate, \(c_{item}\) cash/goodwill cost, \(n_{room}\) displaced room nights, and \(d\) the displacement factor. The `effect` field is an editable business assumption and does not sum to one across actions.
+where \(h\) is incremental labor hours, \(w_{dept}\) the BLS accommodation-industry mean hourly wage for the department (`data/labor_rates.csv`, scaled by the country labor index), \(c_{item}\) cash/goodwill cost, \(n_{room}\) displaced room nights, and \(d\) the displacement factor. The `effect` field is an editable business assumption and does not sum to one across actions.
 
 ## Limitations and safety
 

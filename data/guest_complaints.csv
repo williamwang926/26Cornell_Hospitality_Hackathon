@@ -1,0 +1,11 @@
+complaint_id,complaint,also_heard_as,topic,macro_category,owner_department,priority_mode,urgent
+bathroom-broken,My bathroom is broken,Something in the bathroom didn't work | The sink was leaking | The bathroom fixtures were falling apart,BathroomCondition,Bathroom,Housekeeping / Engineering,normal,no
+toilet-wont-flush,The toilet won't flush,The toilet kept running | The toilet was clogged | I had to call twice about the toilet,BathroomCondition,Bathroom,Housekeeping / Engineering,normal,no
+staff-too-slow,The staff are too slow,I waited ages for anyone to help | Room service took over an hour | Nobody answered the front desk phone,Staff-SpeedofService,Staff service,Department Manager,normal,no
+checkin-forever,Check-in took forever,The check-in line was huge | My room wasn't ready at check-in time | Only one person was working the front desk,Arrival-CheckIn,Arrival & departure,Front Office,normal,no
+room-dirty,The room was dirty when I arrived,There was dust everywhere | The previous guest's trash was still there | The carpet was filthy,Room-RoomCleanliness,Room condition & comfort,Housekeeping / Engineering,normal,no
+stained-sheets,There were stains on my sheets,The bedding didn't look washed | There was hair on the pillows | The towels were stained,Room-RoomCleanliness,Room condition & comfort,Housekeeping / Engineering,normal,no
+overcharged,I was overcharged on my bill,There were charges I didn't make | I was billed twice | My final bill didn't match my rate,Billing-Issues,Billing & payments,Front Office / Finance,normal,no
+room-noisy,My room was too noisy to sleep,I could hear the neighbors all night | The street noise kept me up | The AC unit was loud,Room-Noise,Room condition & comfort,Housekeeping / Engineering,normal,no
+wifi-dropping,The Wi-Fi kept dropping,The internet was too slow to work | I couldn't connect to the Wi-Fi | The Wi-Fi kept asking me to log in again,Amenities-Internet,Amenities,Facilities / Guest Services,normal,no
+unsafe-room-entry,Someone tried to get into my room,A stranger knocked on my door at night | My door didn't lock properly | I didn't feel safe in my room,Security/Legal-OnsiteSecurity,Safety & security,Security / GM,emergency_override,yes

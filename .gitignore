@@ -9,3 +9,7 @@ __pycache__/
 *.env
 .env
 data/.*
+# Generated from confidential Hilton data (internal hotel IDs)
+dashboard/data/hotel_index.js
+dashboard/data/hotels/
+data/family_shares.csv

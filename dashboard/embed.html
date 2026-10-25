@@ -2,8 +2,753 @@
   Reserved mount point for the future private dashboard.
   Do not embed raw guest data or property identifiers in static HTML/JavaScript.
   The future application should use approved aggregate artifacts only.
+  This page loads the hotel list + the global guest-complaint list from data/hotel_index.js
+  (window.HOTEL_INDEX, must carry meta.complaints) and each hotel's per-complaint solutions on demand
+  from data/hotels/<id>.js, which calls window.HOTEL_PROFIT_LOAD(id, payload). If the index is absent,
+  or is in the older category/problem format (no meta.complaints), it falls back to the synthetic
+  data/sample/hotel_index.js + data/sample/hotels/<id>.js. Script tags only (works over file://).
 -->
-<main id="guest-issue-triage-root" aria-label="Guest Issue Triage dashboard placeholder">
-  <h1>Guest Issue Triage</h1>
-  <p>Private dashboard integration placeholder. See dashboard/README.md.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guest Issue Triage</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #f1f3f6; --fg: #17191c; --muted: #5d6470; --faint: #8a919c;
+    --line: #dfe3e8; --line-strong: #c7cdd5; --accent: #1f5fbf; --accent-soft: #e6eefb;
+    --ok: #17803d; --ok-soft: #e5f4ea; --bad: #b42318; --bad-soft: #fde9e7;
+    --warn: #9a5b00; --warn-soft: #fff1d6; --safety: #b42318; --safety-soft: #fde9e7; --safety-row: #fdf3f2;
+    --prevent: #1f5fbf; --resolve: #7a3fb0; --hl: #fff8e1; --hl-head: #fbefc4;
+    --bar: #d4664f; --bar-track: #eef0f3;
+    --shadow: 0 1px 2px rgba(16,24,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0f1115; --panel: #171a20; --panel-2: #1e222a; --fg: #e7e9ed; --muted: #a1a8b3; --faint: #737b87;
+      --line: #2a2f38; --line-strong: #3a404b; --accent: #7aa7f0; --accent-soft: #1b2a44;
+      --ok: #4ec27a; --ok-soft: #12291b; --bad: #f2786c; --bad-soft: #3a1714;
+      --warn: #f0b555; --warn-soft: #33260e; --safety: #f2786c; --safety-soft: #3a1714; --safety-row: #241718;
+      --prevent: #7aa7f0; --resolve: #c49af0; --hl: #262212; --hl-head: #332c12;
+      --bar: #e0806b; --bar-track: #262a32;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0f1115; --panel: #171a20; --panel-2: #1e222a; --fg: #e7e9ed; --muted: #a1a8b3; --faint: #737b87;
+    --line: #2a2f38; --line-strong: #3a404b; --accent: #7aa7f0; --accent-soft: #1b2a44;
+    --ok: #4ec27a; --ok-soft: #12291b; --bad: #f2786c; --bad-soft: #3a1714;
+    --warn: #f0b555; --warn-soft: #33260e; --safety: #f2786c; --safety-soft: #3a1714; --safety-row: #241718;
+    --prevent: #7aa7f0; --resolve: #c49af0; --hl: #262212; --hl-head: #332c12;
+    --bar: #e0806b; --bar-track: #262a32;
+    --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .num, .money, td.n { font-variant-numeric: tabular-nums; }
+  #guest-issue-triage-root { max-width: 1400px; margin: 0 auto; padding: 16px 16px 0; display: flex; flex-direction: column; gap: 16px; min-height: 100vh; }
+  h1 { font-size: 20px; margin: 0; font-weight: 650; letter-spacing: -.01em; }
+  h2 { font-size: 15px; margin: 0; font-weight: 620; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+  .head p { margin: 0; color: var(--muted); font-size: 13px; }
+  .banner { background: var(--warn-soft); color: var(--warn); border: 1px solid currentColor; border-radius: 8px; padding: 8px 12px; font-weight: 600; font-size: 13px; }
+  .banner[hidden] { display: none; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); }
+  .pad { padding: 12px 14px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  label.f { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+  select { font: inherit; font-size: 13px; color: var(--fg); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 6px; padding: 6px 8px; min-width: 0; max-width: 100%; }
+  select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .picker { display: flex; flex-direction: column; gap: 8px; }
+  .picker label.f { max-width: 520px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; line-height: 1.5; }
+  .badge-safety { color: var(--safety); background: var(--safety-soft); }
+  .badge-urgent { color: #fff; background: var(--bad); border-color: var(--bad); text-transform: uppercase; letter-spacing: .03em; }
+  :root[data-theme="dark"] .badge-urgent { color: #1a0b09; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge-urgent { color: #1a0b09; } }
+
+  /* hotel heading */
+  .hotel-line { font-size: 16px; font-weight: 620; margin: 0; overflow-wrap: anywhere; }
+  .hotel-line .sep { color: var(--faint); font-weight: 400; margin: 0 6px; }
+  .hotel-line .id { color: var(--muted); font-weight: 500; }
+
+  .rank-panel { display: flex; flex-direction: column; }
+  .rank-head { display: flex; flex-direction: column; gap: 4px; border-bottom: 1px solid var(--line); }
+  .rank-head .cap { font-size: 13px; color: var(--muted); margin: 0; }
+  .state { padding: 28px 16px; text-align: center; color: var(--muted); }
+  .state.err { color: var(--bad); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+  .bar { height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; display: block; }
+  .bar i { display: block; height: 100%; background: var(--bar); border-radius: 3px; min-width: 2px; }
+
+  /* complaint list */
+  .row-btn { width: 100%; font: inherit; color: inherit; background: none; border: 0; text-align: left; cursor: pointer; }
+  .row-btn:hover { background: var(--panel-2); }
+  .chev { color: var(--muted); font-size: 11px; width: 12px; display: inline-block; transition: transform .12s; }
+  [aria-expanded="true"] > .chev { transform: rotate(90deg); }
+  .rk { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; text-align: right; }
+  .cl-h, .cmp > .row-btn { display: grid; grid-template-columns: 12px 26px minmax(0, 1.5fr) minmax(0, 1.1fr) 76px 72px 104px 104px 84px 64px 132px; gap: 4px 10px; align-items: center; padding: 9px 14px; }
+  .cl-h { font-size: 11.5px; font-weight: 600; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); padding-top: 6px; padding-bottom: 6px; align-items: end; line-height: 1.25; }
+  .cl-h .r, .m.r { text-align: right; }
+  .mets { display: contents; }
+  .m { min-width: 0; font-variant-numeric: tabular-nums; }
+  .m .lbl { display: none; }
+  .m.hero, .cl-h .hero { background: var(--hl); border-radius: 6px; padding: 3px 6px; margin: -3px 0; }
+  .cl-h .hero { background: var(--hl-head); color: var(--fg); }
+  .m.hero .big { font-size: 15px; font-weight: 750; display: block; }
+  .m.hero .bar { margin-top: 3px; }
+  .m .rng { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .m.best { overflow-wrap: anywhere; font-size: 13px; }
+  .m.best small { display: block; font-size: 11.5px; color: var(--muted); }
+  .m.pc { font-size: 12px; line-height: 1.35; }
+  .m.pc > span:not(.lbl) { display: block; white-space: nowrap; }
+  .m.pc .pc-cost { font-weight: 650; font-size: 13px; }
+  .m.pc .pc-sub { color: var(--muted); }
+  .grp-h { padding: 6px 14px; font-size: 12px; font-weight: 650; color: var(--muted); background: var(--panel-2); border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .grp-h.sfty { color: var(--safety); }
+  .grp-h.urg { color: var(--bad); background: var(--bad-soft); }
+  .same { font-size: 11.5px; color: var(--muted); font-style: italic; }
+  .ctype { font-size: 12px; color: var(--muted); margin: 0; }
+  .grp-h .ct { font-weight: 500; color: var(--faint); }
+  .cmp { border-bottom: 1px solid var(--line); }
+  .cmp:last-child { border-bottom: 0; }
+  .cmp.urgent > .row-btn { box-shadow: inset 4px 0 0 var(--bad); background: var(--bad-soft); }
+  .cmp.urgent > .row-btn:hover { background: var(--panel-2); }
+  .cmp.safety > .row-btn { box-shadow: inset 3px 0 0 var(--safety); background: var(--safety-row); }
+  .cmp.safety > .row-btn:hover { background: var(--panel-2); }
+  .cmp.open > .row-btn, .cmp.urgent.open > .row-btn, .cmp.safety.open > .row-btn { background: var(--accent-soft); }
+  .cq { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .cq q { font-weight: 640; font-size: 14.5px; overflow-wrap: anywhere; }
+  .tags { display: flex; flex-wrap: wrap; gap: 3px 8px; align-items: center; font-size: 12px; color: var(--muted); }
+  .tag { font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+  .cmp.open .tag { background: var(--panel); }
+  .nodata-lbl { font-size: 11.5px; font-style: italic; color: var(--faint); }
+  .cmp.nodata > .row-btn { color: var(--muted); }
+  .cmp.nodata .cq q { font-weight: 560; }
+  .cmp.nodata .m, .cmp.nodata .cq q { opacity: .75; }
+  .cmp.nodata .m.hero { background: transparent; }
+  .pos { color: var(--ok); font-weight: 600; }
+  .neg { color: var(--bad); font-weight: 600; }
+  .dash { color: var(--faint); }
+
+  /* expanded complaint */
+  .cmp-body { padding: 10px 14px 14px 48px; background: var(--panel-2); border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+  .ctx { margin: 0; font-size: 13px; }
+  .ctx b { font-variant-numeric: tabular-nums; }
+  .aka { margin: 0; font-size: 12px; color: var(--muted); }
+  .sfty-note { margin: 0; font-size: 12.5px; color: var(--safety); font-weight: 600; }
+  .audf { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .audf .lab { font-size: 12px; color: var(--muted); margin-right: 4px; }
+  .audf button { font: inherit; font-size: 12.5px; color: var(--muted); background: var(--panel); border: 1px solid var(--line-strong); border-radius: 999px; padding: 2px 10px; cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+  .audf button:hover { color: var(--fg); }
+  .audf button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .audf button.zero { color: var(--faint); border-style: dashed; }
+  .audf .ct { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .85; }
+  .aud-note { font-size: 12px; color: var(--muted); margin: 0; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1040px; font-size: 12.5px; }
+  th, td { padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { background: var(--panel-2); font-size: 12px; font-weight: 600; color: var(--muted); vertical-align: bottom; line-height: 1.25; }
+  th.r, td.r { text-align: right; }
+  th.hero, td.hero { background: var(--hl); }
+  th.hero { background: var(--hl-head); color: var(--fg); }
+  td.hero .big { font-size: 14px; font-weight: 700; }
+  td .rng { display: block; font-size: 11px; color: var(--muted); white-space: nowrap; }
+  td.n { white-space: nowrap; }
+  tr.data:hover td { background: var(--panel-2); }
+  tr.data:hover td.hero { background: var(--hl-head); }
+  .type { font-size: 11px; }
+  .type.Prevent { color: var(--prevent); }
+  .type.Resolve { color: var(--resolve); }
+  .sol { display: flex; gap: 4px; align-items: flex-start; min-width: 190px; max-width: 280px; }
+  .sol button { font: inherit; font-size: 11px; color: var(--muted); background: none; border: 0; padding: 1px 2px; cursor: pointer; line-height: 1.4; flex: none; }
+  .sol button:hover { color: var(--fg); }
+  .sol .srk { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; margin-right: 3px; }
+  td.basis { max-width: 110px; }
+  td.for { white-space: nowrap; }
+  /* Keep the solution name visible while the table scrolls sideways on narrow screens. */
+  th:first-child, tr.data td:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); box-shadow: inset -1px 0 0 var(--line); }
+  th:first-child { background: var(--panel-2); }
+  tr.detail td { background: var(--panel-2); font-size: 12px; color: var(--muted); padding: 8px 12px 10px 28px; }
+  tr.detail .dwrap { position: sticky; left: 28px; max-width: min(900px, calc(100vw - 140px)); }
+  tr.detail dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px 16px; margin: 6px 0 0; }
+  tr.detail dt { font-size: 11px; }
+  tr.detail dd { margin: 0; color: var(--fg); font-variant-numeric: tabular-nums; }
+  tr.detail .desc { color: var(--fg); font-size: 13px; max-width: 80ch; }
+  .src { font-size: 11px; color: var(--muted); }
+  .empty { padding: 16px; text-align: center; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+
+  details.how summary { cursor: pointer; font-weight: 600; }
+  details.how ol { margin: 8px 0 0; padding-left: 20px; color: var(--muted); font-size: 13px; }
+  details.how li { margin: 3px 0; }
+  details.how code { font-size: 12px; background: var(--panel-2); padding: 0 4px; border-radius: 4px; color: var(--fg); }
+  details.how .wage-table { border-collapse: collapse; width: auto; min-width: 0; max-width: 100%; margin: 4px 0 2px; font-size: 12px; color: var(--fg); }
+  details.how .wage-table th, details.how .wage-table td { text-align: left; padding: 2px 12px 2px 0; background: none; position: static; box-shadow: none; }
+  details.how .wage-table td.num { text-align: right; }
+  details.how .wage-note { display: block; font-size: 12px; }
+
+  footer.disc { position: sticky; bottom: 0; z-index: 5; margin: auto -16px 0; padding: 8px 16px; background: var(--panel); border-top: 1px solid var(--line-strong); font-size: 12px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
+  footer.disc strong { color: var(--fg); }
+  footer.disc ul { display: contents; }
+  footer.disc li { list-style: none; color: var(--muted); white-space: nowrap; }
+  footer.disc li::before { content: "•"; margin-right: 6px; color: var(--faint); }
+  footer.disc .meta { margin-left: auto; color: var(--faint); }
+
+  /* Narrow: the metrics wrap under the complaint as a labelled grid. */
+  @media (max-width: 1060px) {
+    .cl-h { display: none; }
+    .cmp > .row-btn { grid-template-columns: 12px 26px minmax(0, 1fr); align-items: start; }
+    .cmp > .row-btn .chev { margin-top: 3px; }
+    .cmp > .row-btn .rk { margin-top: 2px; }
+    .mets { display: grid; grid-column: 3; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px 12px; margin-top: 4px; }
+    .m.r { text-align: left; }
+    .m .lbl { display: block; font-size: 11px; color: var(--muted); font-weight: 500; }
+    .m.best { grid-column: 1 / -1; }
+    .m.pc > span:not(.lbl) { white-space: normal; }
+    .m.hero { margin: 0; }
+    .cmp-body { padding-left: 14px; }
+  }
+  @media (max-width: 640px) {
+    footer.disc { position: static; }
+    footer.disc li, .tags .pill { white-space: normal; }
+    .cmp > .row-btn { grid-template-columns: 12px 22px minmax(0, 1fr); padding: 9px 10px; }
+    .cmp-body { padding: 10px 8px 12px; }
+  }
+</style>
+</head>
+<body>
+<main id="guest-issue-triage-root" aria-label="Guest Issue Triage dashboard">
+  <div class="head">
+    <h1>Guest Issue Triage · Guest complaints, solutions &amp; expected profit</h1>
+    <p id="gen-line"></p>
+  </div>
+  <div id="sample-banner" class="banner" role="status" hidden>Sample data: data/hotel_index.js was not found, so this page is showing synthetic demo hotels (DEMO-*). Figures are fabricated for UI development.</div>
+  <div id="load-error" class="banner" role="alert" hidden></div>
+
+  <section class="panel pad picker" aria-label="Hotel picker">
+    <label class="f">Hotel<select id="hotel-sel"></select></label>
+  </section>
+
+  <h2 class="hotel-line" id="hotel-line" aria-live="polite"></h2>
+
+  <section class="panel rank-panel" aria-labelledby="rank-title">
+    <div class="pad rank-head">
+      <h2 id="rank-title">Guest complaints ranked by Stay Score per $1k</h2>
+      <p class="cap">Ranked by Stay Score gained per $1,000 a year, using this hotel's own model. Profit = owner profit from the Stay Score gain; ROI = (profit − cost) ÷ cost.</p>
+    </div>
+    <div id="list"></div>
+  </section>
+
+  <details class="panel pad how">
+    <summary>How expected profit is computed</summary>
+    <ol>
+      <li><b>Stay Score gain</b> of a solution = this hotel's own regression (Model B) gain for the complaint's topic — the <i>prevent</i> gain for Prevent solutions, the <i>resolve</i> gain for Resolve solutions — × the assumed solution effect × the share of guests in the target audience, converted at <code class="ssp">30.2</code> Stay Score points per rating point.</li>
+      <li><b>Stay Score per $1k</b> = Stay Score gain ÷ annual cost × 1,000. Complaints are ranked by their best solution on this metric; a complaint's solutions are ranked the same way.</li>
+      <li><b>RevPAR / revenue gain</b> = Stay Score gain translated through the hotel-class price elasticity applied to rooms revenue.</li>
+      <li><b>Expected profit</b> (owner $/yr) = rate flow-through + profit on extra room-nights + ancillary margin. The small low–high range beneath each figure brackets the assumptions.</li>
+      <li><b>Net profit</b> = expected profit − annual cost (unit cost × annual uses). <b>ROI</b> = net profit ÷ annual cost.</li>
+      <li id="pricing-li" hidden><b>Cost</b>: <span id="pricing-model"></span>. Hourly wages by department:<div id="labor-rates"></div></li>
+      <li><b>Per case</b> (one guest complaint fixed): <b>cases / yr</b> = complaints this solution fixes a year — per-complaint solutions: annual uses × effect; per-guest and per-room-per-year solutions: the hotel's complaints scaled to all stays × the audience's share of complaints × effect. <b>Cost / case</b> = annual cost ÷ cases / yr (for per-complaint solutions ≈ unit cost ÷ effect: the cost per case actually fixed). <b>Stay Score / case</b> = Stay Score gain ÷ cases / yr. <b>Profit / case</b> = expected profit ÷ cases / yr; <b>Net / case</b> = profit / case − cost / case. <b>Guest rating lift</b> = the rating change (1–5 scale) for the one guest whose case is fixed: this hotel's Model B weight for the case type (resolution weight for Resolve, prevention weight for Prevent; 0 if not positive) × the solution effect.</li>
+      <li>"Fixing it entirely" = the Stay Score the hotel would gain if this complaint disappeared completely (Model B gain for the topic at 100% effect, all guests).</li>
+      <li>Each solution is listed once, for the one audience it targets (family solutions are for Families only; general solutions are for All guests). Solutions for one complaint overlap, so they are alternatives, not additive.</li>
+      <li><b>Urgent</b> complaints are pinned at the very top, then Safety &amp; security complaints ("Safety · escalate"): both go to Security / GM regardless of cost or rank.</li>
+      <li>Several guest complaints can map to the same <b>case type</b> (model topic). They share one set of numbers, because the model scores the case type, not the wording.</li>
+    </ol>
+  </details>
+
+  <footer class="disc" aria-label="Required disclosures">
+    <strong>Disclosures:</strong>
+    <ul id="disc-list"><li>Historical rating association; not causal</li><li>Default cost/effect values are editable assumptions</li><li>Candidate coverage is not full classification accuracy</li><li>Safety/legal items override cost ranking</li></ul>
+    <span class="meta" id="meta-line"></span>
+  </footer>
 </main>
+
+<script src="data/hotel_index.js"></script>
+<script>
+(function () {
+  "use strict";
+  // Per-hotel payload registry. Hotel files call window.HOTEL_PROFIT_LOAD(id, payload).
+  var payloads = {}, waiters = {};
+  window.HOTEL_PROFIT_LOAD = function (id, payload) {
+    id = String(id);
+    payloads[id] = payload || {};
+    (waiters[id] || []).forEach(function (w) { w.ok(payloads[id]); });
+    delete waiters[id];
+  };
+  window.__GIT_LOAD_HOTEL = function (base, id, ok, fail) {
+    id = String(id);
+    if (payloads[id]) { ok(payloads[id]); return; }
+    var first = !waiters[id];
+    (waiters[id] = waiters[id] || []).push({ ok: ok, fail: fail });
+    if (!first) return;
+    var s = document.createElement("script");
+    s.src = base + encodeURIComponent(id) + ".js";
+    s.async = true;
+    function failAll(msg) {
+      var ws = waiters[id] || []; delete waiters[id];
+      ws.forEach(function (w) { w.fail(msg); });
+      if (s.parentNode) s.parentNode.removeChild(s);
+    }
+    s.onload = function () { if (!payloads[id]) failAll(s.src.replace(/^.*\/data\//, "data/") + " loaded but did not call HOTEL_PROFIT_LOAD(\"" + id + "\", …)."); };
+    s.onerror = function () { failAll("Could not load " + base + id + ".js"); };
+    document.head.appendChild(s);
+  };
+
+  // The index must be in the complaint-list format (meta.complaints). An older-format index is ignored.
+  function usable(ix) { return !!(ix && ix.meta && Array.isArray(ix.meta.complaints) && Array.isArray(ix.hotels)); }
+  function boot(isSample, reason) {
+    var go = function () {
+      if (!usable(window.HOTEL_INDEX)) {
+        var e = document.getElementById("load-error");
+        e.hidden = false;
+        e.textContent = "No usable data: data/hotel_index.js is " + (reason === "old" ? "in an older format" : "missing") + " and data/sample/hotel_index.js could not be loaded.";
+        return;
+      }
+      window.__GIT_DASH_INIT(window.HOTEL_INDEX, isSample, isSample ? "data/sample/hotels/" : "data/hotels/", reason);
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", go); else go();
+  }
+  if (usable(window.HOTEL_INDEX)) { boot(false, ""); return; }
+  var reason = window.HOTEL_INDEX ? "old" : "missing";
+  window.HOTEL_INDEX = undefined;
+  var s = document.createElement("script");
+  s.src = "data/sample/hotel_index.js";
+  s.onload = function () { boot(true, reason); };
+  s.onerror = function () { boot(true, reason); };
+  document.head.appendChild(s);
+})();
+</script>
+<script>
+window.__GIT_DASH_INIT = function (INDEX, isSample, HOTEL_BASE, sampleReason) {
+  "use strict";
+
+  var DEFAULT_DISCLOSURES = ["Historical rating association; not causal", "Default cost/effect values are editable assumptions", "Candidate coverage is not full classification accuracy", "Safety/legal items override cost ranking"];
+  var DEFAULT_AUD = ["Leisure", "Business", "Families", "Elite status", "All guests"];
+  var ALL = "All";
+
+  var meta = INDEX.meta || {};
+  var COLS = meta.row_columns || [];
+  var AUDS = (meta.audiences && meta.audiences.length ? meta.audiences : DEFAULT_AUD).slice();
+  var META_C = {}, META_ORDER = {};
+  (meta.complaints || []).forEach(function (c, i) { META_C[String(c.complaint_id)] = c; META_ORDER[String(c.complaint_id)] = i; });
+  var HOTELS = (INDEX.hotels || []).slice().sort(function (a, b) { return String(a.hotel).localeCompare(String(b.hotel), undefined, { numeric: true }); });
+  var HOTEL_BY_ID = {};
+  HOTELS.forEach(function (h) { HOTEL_BY_ID[String(h.hotel)] = h; });
+  var prepared = {}; // id -> normalized payload (or { error })
+
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function num(v) { if (v === null || v === undefined || v === "") return NaN; var n = +v; return isFinite(n) ? n : NaN; }
+  function truthy(v) { return v === true || v === 1 || v === "true" || v === "True"; }
+
+  // ---------- formatting ----------
+  var fullFmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  var DASH = '<span class="dash">—</span>';
+  function moneyShort(v) {
+    v = num(v); if (isNaN(v)) return "—";
+    var a = Math.abs(v), s = v < 0 ? "−$" : "$", t;
+    if (a >= 1e9) t = (a / 1e9).toFixed(a >= 1e10 ? 0 : 1) + "B";
+    else if (a >= 1e6) t = (a / 1e6).toFixed(a >= 1e8 ? 0 : 1) + "M";
+    else if (a >= 1e3) t = (a / 1e3).toFixed(a >= 1e5 ? 0 : 1) + "k";
+    else t = a.toFixed(0);
+    return s + t.replace(/\.0(?=[kMB]$)/, "");
+  }
+  function money(v, cls) {
+    var n = num(v);
+    if (isNaN(n)) return DASH;
+    var full = fullFmt.format(n).replace("-", "−");
+    return '<span class="money' + (cls ? " " + cls : "") + '" title="' + esc(full) + '">' + moneyShort(n) + "</span>";
+  }
+  function netMoney(v) { var n = num(v); return money(v, isNaN(n) ? "" : n >= 0 ? "pos" : "neg"); }
+  function fixed(v, d) { v = num(v); return isNaN(v) ? "—" : v.toFixed(d); }
+  // Adaptive decimals for small Stay Score quantities.
+  function dec(a) { return a >= 100 ? 0 : a >= 10 ? 1 : a >= 1 ? 2 : 3; }
+  function signedPts(v) { v = num(v); if (isNaN(v)) return "—"; var a = Math.abs(v); return (v > 0 ? "+" : v < 0 ? "−" : "") + a.toFixed(dec(a)); }
+  function rate(v) { v = num(v); if (isNaN(v)) return "—"; var a = Math.abs(v); if (a > 0 && a < 0.001) return v.toPrecision(2); return v.toFixed(a >= 0.01 || a === 0 ? dec(a) : 4); }
+  function pct(v) {
+    v = num(v); if (isNaN(v)) return "—";
+    var p = v * 100, a = Math.abs(p), sign = p < 0 ? "−" : "";
+    if (a >= 100000) return sign + (a / 1000).toFixed(0) + "k%";
+    if (a >= 10000) return sign + (a / 1000).toFixed(1) + "k%";
+    return sign + a.toFixed(a >= 100 ? 0 : 1) + "%";
+  }
+  function roi(r) { return num(r.annual_cost) > 0 && !isNaN(num(r.roi)) ? pct(r.roi) : '<span class="dash" title="No annual cost">—</span>'; }
+  function incPct(v) { v = num(v); if (isNaN(v)) return "—"; var p = v * 100; return (p < 0.1 && p > 0 ? p.toFixed(2) : p.toFixed(1)) + "%"; }
+  var centsFmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Per-case dollars: cents below $1,000, else whole dollars. signed → green/red.
+  function cents(v, signed) {
+    var n = num(v); if (isNaN(n)) return DASH;
+    var t = Math.abs(n) >= 1000 ? fullFmt.format(n) : centsFmt.format(n);
+    t = t.replace("-", "−");
+    return '<span class="money' + (signed ? (n >= 0 ? " pos" : " neg") : "") + '" title="' + esc(centsFmt.format(n).replace("-", "−")) + '">' + t + "</span>";
+  }
+  function centsText(v) { var n = num(v); return isNaN(n) ? "—" : (Math.abs(n) >= 1000 ? fullFmt.format(n) : centsFmt.format(n)).replace("-", "−"); }
+  // Tiny Stay Score per case (e.g. +0.00021): two significant digits.
+  function ssCaseText(v) { v = num(v); if (isNaN(v)) return "—"; if (v === 0) return "0"; var a = Math.abs(v); return (v > 0 ? "+" : "−") + (a >= 0.01 ? a.toFixed(3) : a.toPrecision(2)); }
+  function ssCase(v) { return '<span title="' + esc(fixed(v, 6)) + '">' + ssCaseText(v) + "</span>"; }
+  function liftText(v) { v = num(v); if (isNaN(v)) return "—"; return (v > 0 ? "+" : "") + v.toFixed(2); }
+  function lift(v) { return '<span title="' + esc(fixed(v, 3)) + ' rating points (1–5)">' + liftText(v) + "</span>"; }
+  function caseCount(v) { v = num(v); if (isNaN(v)) return "—"; return v >= 100 ? Math.round(v).toLocaleString("en-US") : v.toFixed(1); }
+  function intFmt(v) { v = num(v); return isNaN(v) ? "—" : Math.round(v).toLocaleString("en-US"); }
+  function bar(v, max) {
+    var w = max > 0 && num(v) > 0 ? Math.max(0, Math.min(100, num(v) / max * 100)) : 0;
+    return '<span class="bar" aria-hidden="true"><i style="width:' + w.toFixed(1) + '%"></i></span>';
+  }
+
+  // ---------- payload normalization ----------
+  function toRow(arr, i) {
+    var o = { _i: i };
+    if (Array.isArray(arr)) { for (var c = 0; c < COLS.length; c++) o[COLS[c]] = arr[c]; }
+    else if (arr && typeof arr === "object") { for (var k in arr) o[k] = arr[k]; }
+    return o;
+  }
+  function byRateDesc(a, b) {
+    var x = num(a.stay_score_per_1k), y = num(b.stay_score_per_1k), xn = isNaN(x), yn = isNaN(y);
+    if (xn || yn) return xn === yn ? a._i - b._i : (xn ? 1 : -1); // missing always last
+    return y - x || a._i - b._i;
+  }
+  // Case type (topic) → global complaints sharing it, so duplicate numbers can be explained.
+  var BY_CASE = {};
+  (meta.complaints || []).forEach(function (c) { var k = caseOf(c); if (k) (BY_CASE[k] = BY_CASE[k] || []).push(c); });
+  function caseOf(m) { return m ? String(m.case_type || m.topic || "") : ""; }
+  // "Security/Legal-OnsiteSecurity" → "Security/Legal · Onsite security"
+  function caseLabel(k) {
+    return String(k).split("-").map(function (part) {
+      return part.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+        .replace(/ (\w)/g, function (x, ch) { return " " + ch.toLowerCase(); }).replace(/wifi/i, "Wi-Fi");
+    }).join(" · ");
+  }
+  // group: 0 urgent (pinned) · 1 safety (pinned) · 2 ranked · 3 complaints but no costed solution · 4 no recent complaints
+  function prepare(id, p) {
+    if (prepared[id]) return prepared[id];
+    if (!p || !Array.isArray(p.complaints)) return (prepared[id] = { error: "data/hotels/" + id + ".js is in an older format (no complaints list). Re-run the export." });
+    var seen = {};
+    var list = p.complaints.map(function (c) {
+      var cid = String(c.complaint_id); seen[cid] = 1;
+      var m = META_C[cid] || { complaint_id: cid, complaint: cid };
+      var rows = (c.solutions || []).map(toRow).sort(byRateDesc);
+      rows.forEach(function (r) { if (r["for"] && AUDS.indexOf(r["for"]) < 0) AUDS.push(r["for"]); });
+      var best = num(c.best_stay_score_per_1k);
+      if (isNaN(best) && rows.length) best = num(rows[0].stay_score_per_1k);
+      var has = truthy(c.has_data);
+      var safety = truthy(m.safety), urgent = truthy(m.urgent);
+      var grp = urgent ? 0 : !has ? 4 : safety ? 1 : rows.length && !isNaN(best) ? 2 : 3;
+      return { id: cid, m: m, has: has, safety: safety, urgent: urgent, grp: grp, best: best, rows: rows, top: rows[0] || null,
+               complaints: c.complaints, reviews: c.reviews_in_window, incidence: c.incidence, full_fix: c.full_fix_stay_score,
+               unresolved_reported: c.unresolved_reported, resolve_weight: c.resolve_weight, prevent_weight: c.prevent_weight };
+    });
+    // Any global complaint missing from the hotel file is shown as "no recent complaints".
+    (meta.complaints || []).forEach(function (m) {
+      var cid = String(m.complaint_id);
+      if (!seen[cid]) list.push({ id: cid, m: m, has: false, safety: truthy(m.safety), urgent: truthy(m.urgent), grp: truthy(m.urgent) ? 0 : 4, best: NaN, rows: [], top: null });
+    });
+    list.sort(function (a, b) {
+      if (a.grp !== b.grp) return a.grp - b.grp;
+      var x = isNaN(a.best) ? -Infinity : a.best, y = isNaN(b.best) ? -Infinity : b.best;
+      if (x !== y) return y - x;
+      return (META_ORDER[a.id] == null ? 1e9 : META_ORDER[a.id]) - (META_ORDER[b.id] == null ? 1e9 : META_ORDER[b.id]);
+    });
+    var rank = 0, maxBest = 0;
+    list.forEach(function (c) { if (c.grp === 2) c.rank = ++rank; if (c.grp <= 2 && c.best > maxBest) maxBest = c.best; });
+    return (prepared[id] = { list: list, maxBest: maxBest });
+  }
+
+  // ---------- state ----------
+  // status: "loading" | "ready" | "error"
+  var state = { hotel: null, status: "loading", error: "", c: "", aud: ALL, open: {} };
+  function cur() { return state.status === "ready" ? prepared[state.hotel] : null; }
+  function findC(d, id) { for (var i = 0; i < d.list.length; i++) if (d.list[i].id === id) return d.list[i]; return null; }
+
+  // ---------- solution table (expanded complaint) ----------
+  var TCOLS = [
+    { label: "Solution" }, { label: "For" }, { label: "Type" },
+    { label: "Annual cost", right: true, title: "Unit cost × annual uses" },
+    { label: "Stay Score gain", right: true },
+    { label: "Stay Score per $1k", right: true, hero: true, title: "Stay Score gain ÷ annual cost × 1,000 — the ranking metric" },
+    { label: "Expected profit", right: true, title: "Owner profit $/yr from the Stay Score gain (base case); low–high range beneath" },
+    { label: "Net profit", right: true, title: "Expected profit − annual cost" },
+    { label: "ROI", right: true, title: "Net profit ÷ annual cost" },
+    { label: "Cost / case", right: true, title: "Annual cost ÷ cases fixed a year (cases / yr beneath)" },
+    { label: "Stay Score / case", right: true, title: "Stay Score gain ÷ cases fixed a year: the hotel Stay Score points one fixed case adds" },
+    { label: "Guest rating lift", right: true, title: "Rating change (1–5) for the one guest whose case is fixed: this hotel's Model B weight × effect" },
+    { label: "Net / case", right: true, title: "Profit per case − cost per case" }
+  ];
+  function tableHtml(c, rows) {
+    var h = HOTEL_BY_ID[state.hotel];
+    var curS = h ? num(h.stay_score) : NaN;
+    var head = "<tr>" + TCOLS.map(function (t) {
+      return '<th scope="col" class="' + (t.right ? "r " : "") + (t.hero ? "hero" : "") + '"' + (t.title ? ' title="' + esc(t.title) + '"' : "") + ">" + esc(t.label) + "</th>";
+    }).join("") + "</tr>";
+    var html = [];
+    rows.forEach(function (r) {
+      var key = c.id + "|" + r._i;
+      var isOpen = !!state.open[key];
+      var tip = [r.description, r.source ? "Source: " + r.source : ""].filter(Boolean).join("\n");
+      html.push(
+        '<tr class="data">' +
+        '<td><div class="sol"><button type="button" data-open="' + esc(key) + '" aria-expanded="' + isOpen + '" aria-label="Show details for ' + esc(r.solution) + '">' + (isOpen ? "▾" : "▸") + '</button><div><span class="srk">' + (c.rows.indexOf(r) + 1) + '.</span><span title="' + esc(tip) + '">' + esc(r.solution) + "</span></div></div></td>" +
+        '<td class="for">' + esc(r["for"] || "—") + "</td>" +
+        '<td><span class="pill type ' + esc(r.type) + '" title="' + esc(r.basis) + '">' + esc(r.type) + "</span></td>" +
+        '<td class="r n">' + money(r.annual_cost) + "</td>" +
+        '<td class="r n">' + signedPts(r.stay_score_gain) + "</td>" +
+        '<td class="r n hero"><span class="big" title="' + esc(fixed(r.stay_score_per_1k, 5)) + '">' + rate(r.stay_score_per_1k) + "</span></td>" +
+        '<td class="r n">' + money(r.profit_gain) + '<span class="rng">' + moneyShort(r.profit_low) + " – " + moneyShort(r.profit_high) + "</span></td>" +
+        '<td class="r n">' + netMoney(r.net_profit) + "</td>" +
+        '<td class="r n">' + roi(r) + "</td>" +
+        '<td class="r n">' + cents(r.cost_per_case) + '<span class="rng">' + caseCount(r.cases_per_year) + " cases / yr</span></td>" +
+        '<td class="r n">' + ssCase(r.stay_score_per_case) + "</td>" +
+        '<td class="r n">' + lift(r.guest_rating_lift) + "</td>" +
+        '<td class="r n">' + cents(r.net_per_case, true) + "</td>" +
+        "</tr>"
+      );
+      if (isOpen) {
+        html.push('<tr class="detail"><td colspan="' + TCOLS.length + '"><div class="dwrap"><div class="desc">' + esc(r.description || "No description.") + "</div>" +
+          (r.source ? '<div class="src">Source: ' + esc(r.source) + "</div>" : "") + "<dl>" +
+          "<dt>Basis</dt><dd>" + esc(r.basis || "—") + "</dd>" +
+          '<dt>Predicted Stay Score</dt><dd title="Current Stay Score → predicted with this solution">' + fixed(curS, 2) + " → <b>" + fixed(r.predicted_stay_score, 3) + "</b></dd>" +
+          "<dt>Unit cost × uses / yr</dt><dd>" + money(r.unit_cost) + " × " + intFmt(r.uses) + " = " + money(r.annual_cost) + "</dd>" +
+          "<dt>Cases fixed / yr</dt><dd>" + caseCount(r.cases_per_year) + " → " + cents(r.cost_per_case) + " per case</dd>" +
+          "<dt>Expected profit / case</dt><dd>" + cents(r.profit_per_case) + " − " + cents(r.cost_per_case) + " = " + cents(r.net_per_case, true) + "</dd>" +
+          "<dt>Rating gain (1–5 scale)</dt><dd>" + signedPts(r.gain) + "</dd>" +
+          "<dt>Revenue gain / yr</dt><dd>" + money(r.revenue_gain) + "</dd>" +
+          "<dt>Expected profit range</dt><dd>" + money(r.profit_low) + " – " + money(r.profit_high) + " (base " + money(r.profit_gain) + ")</dd>" +
+          "</dl></div></td></tr>");
+      }
+    });
+    return '<div class="tablewrap"><table><thead>' + head + "</thead><tbody>" + html.join("") + "</tbody></table></div>";
+  }
+
+  function contextLine(c) {
+    if (!c.has) return '<p class="ctx muted">No recent complaints at this hotel' + (num(c.reviews) > 0 ? " (0 of " + intFmt(c.reviews) + " reviews in the last year)" : "") + ", so fixing it would not raise the Stay Score here.</p>";
+    var n = num(c.complaints);
+    return '<p class="ctx"><b>' + intFmt(c.complaints) + "</b> complaint" + (n === 1 ? "" : "s") + " in the last year (" + incPct(c.incidence) + " of reviews) · fixing it entirely is worth <b>" + signedPts(c.full_fix) + "</b> Stay Score</p>" + resolveLine(c);
+  }
+  // One reported case: rating lift for that guest from this hotel's resolution weight (× the best
+  // Resolve solution's effect when there is one), plus the open (reported, unresolved) cases a year.
+  function resolveLine(c) {
+    var w = num(c.resolve_weight), open = num(c.unresolved_reported);
+    if (isNaN(w)) return "";
+    var tail = isNaN(open) ? "" : " — <b>" + intFmt(open) + "</b> reported case" + (open === 1 ? " is" : "s are") + " still unresolved each year in reviews";
+    if (!(w > 0)) return '<p class="ctx muted">Resolving a reported case is not associated with a higher rating at this hotel (resolution weight ' + w.toFixed(3) + ")" + tail + ".</p>";
+    var best = null;
+    c.rows.forEach(function (r) { if (!best && r.type === "Resolve" && num(r.guest_rating_lift) > 0) best = r; });
+    var r = best ? num(best.guest_rating_lift) : w;
+    var how = best ? "this hotel's resolution weight " + w.toFixed(3) + " × " + Math.round(r / w * 100) + "% effect of “" + esc(best.solution) + "”"
+                   : "this hotel's resolution weight " + w.toFixed(3) + ", full resolution";
+    return '<p class="ctx">Resolving one reported case here lifts that guest\'s rating by <b>~' + liftText(r) + "</b> (" + how + ")" + tail + ".</p>";
+  }
+  function bodyHtml(c) {
+    var out = [contextLine(c)];
+    var ck = caseOf(c.m), sib = (BY_CASE[ck] || []).filter(function (o) { return String(o.complaint_id) !== c.id; });
+    if (ck) out.push('<p class="ctype">Case type: <b>' + esc(caseLabel(ck)) + "</b>" + (sib.length ? " · shared with " + sib.map(function (o) { return "“" + esc(o.complaint) + "”"; }).join(", ") + ", so the numbers are identical" : "") + "</p>");
+    var aka = c.m.also_heard_as;
+    if (aka && aka.length) out.push('<p class="aka">Also heard as: ' + (Array.isArray(aka) ? aka : [aka]).map(function (a) { return "“" + esc(a) + "”"; }).join(", ") + "</p>");
+    if (c.urgent) out.push('<p class="sfty-note">Urgent: act now and escalate to ' + esc(c.m.owner_department || "Security / GM") + " — pinned to the top regardless of cost.</p>");
+    else if (c.safety) out.push('<p class="sfty-note">Safety &amp; security: escalate to ' + esc(c.m.owner_department || "Security / GM") + " regardless of cost — solutions are listed for reference, not ranked into the list.</p>");
+    if (!c.rows.length) { out.push('<div class="empty">No solutions in the catalog for this complaint yet.</div>'); return out.join(""); }
+    var counts = {}; counts[ALL] = c.rows.length;
+    c.rows.forEach(function (r) { counts[r["for"]] = (counts[r["for"]] || 0) + 1; });
+    var opts = [ALL].concat(AUDS.filter(function (a) { return counts[a] || a === state.aud; }));
+    out.push('<div class="audf" role="group" aria-label="Filter solutions by audience"><span class="lab">For:</span>' + opts.map(function (a) {
+      var n = counts[a] || 0, sel = a === state.aud;
+      return '<button type="button" data-aud="' + esc(a) + '" aria-pressed="' + sel + '"' + (n ? "" : ' class="zero"') + ">" + esc(a) + '<span class="ct">' + n + "</span></button>";
+    }).join("") + "</div>");
+    var rows = state.aud === ALL ? c.rows : c.rows.filter(function (r) { return r["for"] === state.aud; });
+    out.push(rows.length ? tableHtml(c, rows) : '<div class="empty">No solution targets ' + esc(state.aud) + " for this complaint.</div>");
+    out.push('<p class="aud-note">Solutions overlap, so they are alternatives — pick one; their gains are not additive. Ranked by Stay Score per $1k.</p>');
+    return out.join("");
+  }
+
+  // ---------- complaint list ----------
+  var GROUP_HEAD = {
+    0: '<div class="grp-h urg">Urgent · act now — not ranked by cost</div>',
+    1: '<div class="grp-h sfty">Safety &amp; security · escalate to Security / GM — not ranked by cost</div>',
+    2: '<div class="grp-h">Ranked by Stay Score per $1k</div>',
+    3: '<div class="grp-h">Complaints with no costed solution yet</div>',
+    4: '<div class="grp-h">No recent complaints at this hotel</div>'
+  };
+  function perCase(t) {
+    var full = centsText(t.cost_per_case) + " per case · " + ssCaseText(t.stay_score_per_case) + " Stay Score · guest " + liftText(t.guest_rating_lift) + " rating";
+    return '<span class="pc-cost" title="' + esc(full + " (" + caseCount(t.cases_per_year) + " cases fixed a year)") + '">' + centsText(t.cost_per_case) + " per case</span>" +
+      '<span class="pc-sub">' + ssCaseText(t.stay_score_per_case) + " Stay Score</span>" +
+      '<span class="pc-sub">guest ' + liftText(t.guest_rating_lift) + " rating</span>";
+  }
+  function rowHtml(c, maxBest) {
+    var open = c.id === state.c;
+    var t = c.top, m = c.m;
+    var rk = c.grp === 2 ? String(c.rank) : c.grp <= 1 ? '<span style="color:var(--safety)" title="' + (c.urgent ? "Urgent" : "Safety") + ': pinned, not ranked">!</span>' : "—";
+    var ck = caseOf(m), sib = (BY_CASE[ck] || []).filter(function (o) { return String(o.complaint_id) !== c.id; });
+    var tags = '<span class="tags">' + (c.urgent ? '<span class="pill badge-urgent" title="Urgent: pinned to the top, escalate now">Urgent</span>' : "") + (m.macro_category ? '<span class="tag" title="Category">' + esc(m.macro_category) + "</span>" : "") +
+      (m.owner_department ? '<span title="Owner department">' + esc(m.owner_department) + "</span>" : "") +
+      (c.safety ? '<span class="pill badge-safety" title="Safety/legal items override cost ranking">Safety · escalate — not ranked by cost</span>' : "") +
+      (sib.length ? '<span class="same" title="Case type: ' + esc(caseLabel(ck)) + ' — complaints of the same case type share the same numbers">Same case type as “' + esc(sib[0].complaint) + "”" + (sib.length > 1 ? " +" + (sib.length - 1) : "") + "</span>" : "") +
+      (!c.has ? '<span class="nodata-lbl">No recent complaints at this hotel</span>' : c.grp === 3 ? '<span class="nodata-lbl">No costed solution yet</span>' : "") + "</span>";
+    var showMet = c.has && t;
+    var mets = '<span class="mets">' +
+      '<span class="m best"><span class="lbl">Best solution</span>' + (t ? esc(t.solution) + "<small>" + esc(t.type || "") + (t["for"] ? " · for " + esc(t["for"]) : "") + "</small>" : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Annual cost</span>' + (t ? money(t.annual_cost) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Stay Score gain</span>' + (showMet ? signedPts(t.stay_score_gain) : DASH) + "</span>" +
+      '<span class="m r hero"><span class="lbl">Stay Score per $1k</span>' + (showMet ? '<span class="big" title="' + esc(fixed(c.best, 5)) + '">' + rate(c.best) + "</span>" + (c.grp <= 2 ? bar(c.best, maxBest) : "") : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Expected profit</span>' + (showMet ? money(t.profit_gain) + '<span class="rng">' + moneyShort(t.profit_low) + " – " + moneyShort(t.profit_high) + "</span>" : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">Net profit</span>' + (showMet ? netMoney(t.net_profit) : DASH) + "</span>" +
+      '<span class="m r"><span class="lbl">ROI</span>' + (showMet ? roi(t) : DASH) + "</span>" +
+      '<span class="m pc"><span class="lbl">Per case (best solution)</span>' + (showMet ? perCase(t) : DASH) + "</span>" +
+      "</span>";
+    var bid = "cb-" + c.id.replace(/[^\w-]/g, "_");
+    return '<div class="cmp' + (c.urgent ? " urgent" : c.safety && c.has ? " safety" : "") + (!c.has ? " nodata" : "") + (open ? " open" : "") + '">' +
+      '<button type="button" class="row-btn" data-c="' + esc(c.id) + '" aria-expanded="' + open + '" aria-controls="' + bid + '">' +
+      '<span class="chev">▶</span><span class="rk">' + rk + "</span>" +
+      '<span class="cq"><q>' + esc(m.complaint || c.id) + "</q>" + tags + "</span>" + mets + "</button>" +
+      (open ? '<div class="cmp-body" id="' + bid + '">' + bodyHtml(c) + "</div>" : "") + "</div>";
+  }
+  function renderList() {
+    var box = $("list");
+    if (!state.hotel) { box.innerHTML = '<div class="state">No hotels in data.</div>'; return; }
+    if (state.status === "loading") { box.innerHTML = '<div class="state" role="status"><span class="spinner"></span>Loading hotel ' + esc(state.hotel) + "…</div>"; return; }
+    if (state.status === "error") { box.innerHTML = '<div class="state err" role="alert">Could not load this hotel\'s data. ' + esc(state.error) + "</div>"; return; }
+    var d = cur();
+    if (!d.list.length) { box.innerHTML = '<div class="state">No guest complaints in the data.</div>'; return; }
+    var html = ['<div class="cl-h" aria-hidden="true"><span></span><span class="rk">#</span><span>Guest complaint · category · owner</span><span>Best solution</span>' +
+      '<span class="r">Annual cost</span><span class="r">Stay Score gain</span><span class="r hero">Stay Score per $1k</span><span class="r">Expected profit</span><span class="r">Net profit</span><span class="r">ROI</span><span title="Best solution: cost per case fixed · Stay Score one case adds · rating lift for that guest">Per case</span></div>'];
+    var lastG = -1;
+    d.list.forEach(function (c) {
+      if (c.grp !== lastG) { html.push(GROUP_HEAD[c.grp]); lastG = c.grp; }
+      html.push(rowHtml(c, d.maxBest));
+    });
+    box.innerHTML = html.join("");
+  }
+
+  function renderHotelLine() {
+    var h = HOTEL_BY_ID[state.hotel];
+    if (!h) { $("hotel-line").innerHTML = ""; return; }
+    var parts = [h.brand, h.hotel_class, h.ownership, h.country, isNaN(num(h.rooms)) ? "" : intFmt(h.rooms) + " rooms"].filter(Boolean);
+    $("hotel-line").innerHTML = '<span class="id">Hotel ' + esc(h.hotel) + '</span><span class="sep">·</span>' + parts.map(esc).join('<span class="sep">·</span>');
+  }
+
+  // ---------- hotel picker ----------
+  function hotelLabel(h) { return h.hotel + " — " + (h.brand || "?") + (h.country ? " · " + h.country : ""); }
+  $("hotel-sel").innerHTML = HOTELS.map(function (h) { return '<option value="' + esc(h.hotel) + '">' + esc(hotelLabel(h)) + "</option>"; }).join("") || '<option value="">No hotels</option>';
+
+  // ---------- hash ----------
+  // #hotel=ID&c=<complaint_id>. Nothing is ever expanded automatically: no c (or an unknown c) → all collapsed.
+  function readHash() {
+    var p = new URLSearchParams(location.hash.replace(/^#/, ""));
+    return { hotel: p.get("hotel"), c: p.has("c") ? p.get("c") : null };
+  }
+  function writeHash() {
+    var p = new URLSearchParams();
+    if (state.hotel) p.set("hotel", state.hotel);
+    if (state.status === "ready" && state.c) p.set("c", state.c);
+    var nh = "#" + p.toString();
+    if (location.hash !== nh) history.replaceState(null, "", nh);
+  }
+  function applyWant(want) {
+    var d = cur(); if (!d) return;
+    var prev = state.c;
+    state.c = want.c && findC(d, want.c) ? want.c : "";
+    if (state.c !== prev) { state.aud = ALL; state.open = {}; }
+  }
+
+  var loadSeq = 0;
+  function selectHotel(id, want) {
+    want = want || {};
+    if (!HOTEL_BY_ID[id]) id = HOTELS.length ? String(HOTELS[0].hotel) : null;
+    if (id !== state.hotel) state.open = {};
+    state.hotel = id;
+    $("hotel-sel").value = id || "";
+    renderHotelLine();
+    if (!id) { renderList(); return; }
+    var seq = ++loadSeq;
+    state.status = "loading"; state.error = "";
+    renderList();
+    window.__GIT_LOAD_HOTEL(HOTEL_BASE, id, function (payload) {
+      if (seq !== loadSeq) return;
+      var d = prepare(id, payload);
+      if (d.error) { state.status = "error"; state.error = d.error; renderList(); writeHash(); return; }
+      state.status = "ready";
+      applyWant(want);
+      renderList(); writeHash();
+    }, function (msg) {
+      if (seq !== loadSeq) return;
+      state.status = "error"; state.error = msg;
+      renderList(); writeHash();
+    });
+    writeHash();
+  }
+
+  // ---------- static bits ----------
+  var disc = (meta.disclosures && meta.disclosures.length ? meta.disclosures.slice() : DEFAULT_DISCLOSURES.slice());
+  DEFAULT_DISCLOSURES.forEach(function (d) { if (disc.indexOf(d) < 0) disc.push(d); });
+  $("disc-list").innerHTML = disc.map(function (d) { return "<li>" + esc(d) + "</li>"; }).join("");
+  $("meta-line").textContent = [meta.generated ? "Generated " + meta.generated : "", meta.source_repo_commit ? "commit " + String(meta.source_repo_commit).slice(0, 10) : ""].filter(Boolean).join(" · ");
+  $("gen-line").textContent = HOTELS.length.toLocaleString("en-US") + " hotels · " + (meta.complaints || []).length + " guest complaints" + (isSample ? " · SAMPLE DATA" : "");
+  if (meta.stay_score_per_rating_point) Array.prototype.forEach.call(document.querySelectorAll(".ssp"), function (e) { e.textContent = meta.stay_score_per_rating_point; });
+  if (meta.pricing_model || meta.labor_rates) {
+    $("pricing-li").hidden = false;
+    $("pricing-model").textContent = meta.pricing_model || "";
+    var lr = meta.labor_rates || {}, occ = meta.labor_rate_occupations || {}, src = meta.labor_rate_sources || {};
+    $("labor-rates").innerHTML = Object.keys(lr).length ? '<table class="wage-table"><thead><tr><th>Department</th><th>BLS occupation</th><th>$/hour</th></tr></thead><tbody>' +
+      Object.keys(lr).map(function (d) {
+        var o = occ[d] ? esc(occ[d]) : "";
+        if (o && /^https:\/\//.test(src[d] || "")) o = '<a href="' + esc(src[d]) + '" target="_blank" rel="noopener">' + o + "</a>";
+        return "<tr><td>" + esc(d) + "</td><td>" + o + '</td><td class="num">$' + Number(lr[d]).toFixed(2) + "</td></tr>";
+      }).join("") + '</tbody></table><span class="wage-note">BLS 2025 accommodation-industry (NAICS 721) mean hourly wages, wages only; scaled by the country labor index outside the US.</span>' : "";
+  }
+  if (isSample) {
+    $("sample-banner").hidden = false;
+    if (sampleReason === "old") $("sample-banner").textContent = "Sample data: data/hotel_index.js is in the older category/problem format (no guest-complaint list), so this page is showing synthetic demo hotels (DEMO-*) until the new export lands. Figures are fabricated for UI development.";
+  }
+
+  // ---------- events ----------
+  // Switching hotel collapses everything; only a click (or a c= in an opened link) expands a complaint.
+  $("hotel-sel").addEventListener("change", function () { if (this.value) selectHotel(this.value, { c: "" }); });
+
+  function rerender(focusSel) {
+    var tw = $("list").querySelector(".tablewrap"), sl = tw ? tw.scrollLeft : 0;
+    renderList(); writeHash();
+    tw = $("list").querySelector(".tablewrap"); if (tw && sl) tw.scrollLeft = sl;
+    if (focusSel) { var el = $("list").querySelector(focusSel); if (el) el.focus(); }
+  }
+  function attrSel(name, v) { return "[" + name + '="' + String(v).replace(/["\\]/g, "\\$&") + '"]'; }
+
+  $("list").addEventListener("click", function (e) {
+    if (!cur()) return;
+    var b;
+    if ((b = e.target.closest("button[data-open]"))) {
+      var key = b.getAttribute("data-open");
+      if (state.open[key]) delete state.open[key]; else state.open[key] = true;
+      rerender(attrSel("data-open", key));
+    } else if ((b = e.target.closest("button[data-aud]"))) {
+      state.aud = b.getAttribute("data-aud");
+      rerender(attrSel("data-aud", state.aud));
+    } else if ((b = e.target.closest("button[data-c]"))) {
+      var id = b.getAttribute("data-c");
+      state.c = state.c === id ? "" : id;
+      state.aud = ALL; state.open = {};
+      rerender(attrSel("data-c", id));
+    }
+  });
+
+  window.addEventListener("hashchange", function () {
+    var hs = readHash();
+    if (hs.hotel && hs.hotel !== state.hotel) { selectHotel(hs.hotel, { c: hs.c }); return; }
+    if (cur()) { applyWant({ c: hs.c }); renderList(); writeHash(); }
+  });
+
+  var init = readHash();
+  selectHotel(init.hotel, { c: init.c });
+};
+</script>
+</body>
+</html>

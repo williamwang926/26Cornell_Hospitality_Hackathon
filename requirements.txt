@@ -1,0 +1,4 @@
+# Python deps for src/hotel_profit_export.py (and the source repo's price model it imports)
+pandas
+numpy
+openpyxl
